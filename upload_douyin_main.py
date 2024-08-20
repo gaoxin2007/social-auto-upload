@@ -1,21 +1,43 @@
-def run():
-    # 读取 Excel 文件
-    excel_file = 'your_excel_file.xlsx'  # 替换为你的 Excel 文件路径
+import os
+
+import pandas as pd
+import asyncio
+from datetime import datetime
+
+from playwright.async_api import async_playwright
+
+from uploader.douyin_uploader.main import douyin_setup, DouYinVideo
+
+async def run():
+    excel_file = 'your_excel_file-today.xlsx'
     df = pd.read_excel(excel_file)
 
-    # 遍历 Excel 中的行
     for index, row in df.iterrows():
-        cookie_name = row['cookie名']  # 假设第一列为 "cookie名"
-        video_title = row['标题']       # 假设第二列为 "标题"
-        video_desc_and_tags = row['视频描述和话题']  # 假设第三列为 "视频描述和话题"
-        video_path = row['文件地址']    # 假设第四列为 "文件地址"
-
-        # 查找对应的 cookie 文件
+        cookie_name = row['cookie名']
+        video_title = row['标题']
+        video_desc_and_tags = row['视频描述和话题']
+        video_path = row['文件地址']
         cookie_path = f"cookie/{cookie_name}.json"
+        publish_date = row['发布时间']
+
         if not os.path.exists(cookie_path):
             print(f"未找到 cookie 文件: {cookie_path}")
             continue
 
-        print(f"正在使用[{cookie_name}]发布作品")
-        print(f"视频标题：{video_title}")
-        print(f"视频路径：{video_path}")
+
+        # 创建 DouYinVideo 对象，并设置相关参数
+        video = DouYinVideo(
+            title=video_title,
+            file_path=video_path,
+            tags=video_desc_and_tags.split(","),
+            publish_date=publish_date,
+            account_file=cookie_path
+        )
+
+        async with async_playwright() as playwright:
+            await video.upload(playwright)  # 将 playwright 对象传递给 upload 方法
+            print(f"视频 {video_title} 上传成功")
+
+if __name__ == '__main__':
+
+    asyncio.run(run())

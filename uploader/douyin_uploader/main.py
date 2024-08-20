@@ -104,8 +104,25 @@ class DouYinVideo(object):
         # 等待页面跳转到指定的 URL，没进入，则自动等待到超时
         douyin_logger.info(f'[-] 正在打开主页...')
         await page.wait_for_url("https://creator.douyin.com/creator-micro/content/upload")
+
         # 点击 "上传视频" 按钮
-        await page.locator("[name='upload-btn']").set_input_files(self.file_path)
+        try:
+            async with page.expect_file_chooser() as fc_info:
+                await asyncio.sleep(5)
+                await page.locator(
+                    "label:has-text(\"点击上传 或直接将视频文件拖入此区域为了更好的观看体验和平台安全，平台将对上传的视频预审。超过40秒的视频建议上传横版视频\")").click()
+            file_chooser = await fc_info.value
+            await file_chooser.set_files(self.file_path, timeout=3000)
+        except Exception as e:
+            print("发布视频失败，可能网页加载失败了\n", e)
+            douyin_logger.info("发布视频失败，可能网页加载失败了")
+
+        """
+        print("等待元素")
+        await asyncio.sleep(5)
+        print("查找上传元素")
+        await page.locator('div.progress-div [class^="upload-btn-input"]').set_input_files(self.file_path)
+        """
 
         # 等待页面跳转到指定的 URL
         while True:
@@ -123,10 +140,13 @@ class DouYinVideo(object):
         # 这里为了避免页面变化，故使用相对位置定位：作品标题父级右侧第一个元素的input子元素
         await asyncio.sleep(1)
         douyin_logger.info(f'  [-] 正在填充标题和话题...')
-        title_container = page.get_by_text('作品标题').locator("..").locator("xpath=following-sibling::div[1]").locator("input")
+        await asyncio.sleep(1)
+        title_container = page.locator("#root > div > div > div.content-body-v8tuJQ > div.form-kSES6A > div.publish-mention-wrapper-LWv5ed > div.editor-container-zRPSAi > div > div > div > div:nth-child(1) > div > div > input")
         if await title_container.count():
+            print('找到了作品标题输入框')
             await title_container.fill(self.title[:30])
         else:
+            print('没有作品标题输入框')
             titlecontainer = page.locator(".notranslate")
             await titlecontainer.click()
             await page.keyboard.press("Backspace")
@@ -135,8 +155,9 @@ class DouYinVideo(object):
             await page.keyboard.type(self.title)
             await page.keyboard.press("Enter")
         css_selector = ".zone-container"
+        await page.type(css_selector, self.title)
         for index, tag in enumerate(self.tags, start=1):
-            await page.type(css_selector, "#" + tag)
+            await page.type(css_selector,'#' + tag)
             await page.press(css_selector, "Space")
         douyin_logger.info(f'总共添加{len(self.tags)}个话题')
 
@@ -160,16 +181,20 @@ class DouYinVideo(object):
                 await asyncio.sleep(2)
 
         # 更换可见元素
-        await self.set_location(page, "杭州市")
+        await self.set_location(page, "烟台市")
 
+        #选择不允许保存视频
+        await page.locator("#root > div > div > div.content-body-v8tuJQ > div.form-kSES6A > div.download-content-Lci5tL > div > label:nth-child(2) > input").click()
+        input("检查信息，按回车键继续......")
         # 頭條/西瓜
         third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
+        '''
         # 定位是否有第三方平台
         if await page.locator(third_part_element).count():
             # 检测是否是已选中状态
             if 'semi-switch-checked' not in await page.eval_on_selector(third_part_element, 'div => div.className'):
                 await page.locator(third_part_element).locator('input.semi-switch-native-control').click()
-
+        '''
         if self.publish_date != 0:
             await self.set_schedule_time_douyin(page, self.publish_date)
 
@@ -196,7 +221,7 @@ class DouYinVideo(object):
         await context.close()
         await browser.close()
 
-    async def set_location(self, page: Page, location: str = "杭州市"):
+    async def set_location(self, page: Page, location: str = "烟台市"):
         await page.locator('div.semi-select span:has-text("输入地理位置")').click()
         await page.keyboard.press("Backspace")
         await page.wait_for_timeout(2000)
