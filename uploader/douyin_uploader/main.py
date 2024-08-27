@@ -185,7 +185,7 @@ class DouYinVideo(object):
 
         #选择不允许保存视频
         await page.locator("#root > div > div > div.content-body-v8tuJQ > div.form-kSES6A > div.download-content-Lci5tL > div > label:nth-child(2) > input").click()
-        input("检查信息，按回车键继续......")
+
         # 頭條/西瓜
         third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
         '''
@@ -197,6 +197,8 @@ class DouYinVideo(object):
         '''
         if self.publish_date != 0:
             await self.set_schedule_time_douyin(page, self.publish_date)
+
+        # input("检查信息，按回车键继续......")
 
         # 判断视频是否发布成功
         while True:
